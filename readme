@@ -1,0 +1,11 @@
+SegmentfaultCatcher is a tool that can print source code, which cause segmentfault, without using gdb or coredump
+
+
+mkdir build
+cd build
+cmake ..
+make
+
+/xx/xx/test 
+
+note: can install execuable to where ever you want, but must use absolute path to execute, or will not work
