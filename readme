@@ -1,5 +1,6 @@
 SegmentfaultCatcher is a tool that can print source code, which cause segmentfault, without using gdb or coredump
 
+dependency: tar add2line (linux shell command)
 
 mkdir build
 cd build
