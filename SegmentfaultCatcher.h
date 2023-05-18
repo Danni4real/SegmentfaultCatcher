@@ -184,11 +184,11 @@ string get_remote_proj_path(const string& relative_header_path)
 // generate project path at executing machine
 string gen_local_proj_path()
 {
-	using namespace std::chrono;
+    using namespace std::chrono;
 	
     string path = WorkspacePath;
 
-	uint64_t now = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+    uint64_t now = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
 
     path += to_string(now);
 
