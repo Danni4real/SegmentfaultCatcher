@@ -1,16 +1,26 @@
+#include <exception>
+
 #include "SegmentfaultCatcher.h"
 
-void crash()
+void create_segmentfault()
 {
 	int* x = 0;
 	*x = 0;
 }
 
+void throw_exception()
+{
+	throw 100;
+}
+
+
 int main()
 {
 	SegmentfaultCatcher::Register();
 	
-	crash();
+	throw_exception();
+	
+	//crash();
 	
 	return 0;
 }

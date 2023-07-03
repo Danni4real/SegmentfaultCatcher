@@ -21,6 +21,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <exception>
 
 #define WorkspacePath "/tmp/" // make sure 1.it already exists; 2.program have permission(rwx) to it;
 
@@ -184,11 +185,11 @@ string get_remote_proj_path(const string& relative_header_path)
 // generate project path at executing machine
 string gen_local_proj_path()
 {
-    using namespace std::chrono;
+	using namespace std::chrono;
 	
     string path = WorkspacePath;
 
-    uint64_t now = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+	uint64_t now = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
 
     path += to_string(now);
 
@@ -207,8 +208,8 @@ void print_backtrace(int)
         exit(0);
 
     const char* bin_path = dl_info.dli_fname;
-    cout << bin_path << ": segmentfault!!!\n" << "backtrace:\n";
-
+    cout << bin_path << " crashed!!!";
+    
     string local_proj_path = gen_local_proj_path();
     string tar_path = local_proj_path + "/code.tar.gz";
 
@@ -217,33 +218,49 @@ void print_backtrace(int)
 
     string remote_proj_path = get_remote_proj_path(get_relative_header_path(local_proj_path.c_str()));
 
+	cout << "\n\nBacktrace raw:\n";
+	char** backtrace = backtrace_symbols(callstack, frame_count);
+    for (size_t i = 0; i < frame_count; i++)
+    {
+        cout << backtrace[i] << endl;
+    } 
+
+    cout << "\n\nBacktrace detail:";
     for(int i = 2; i < frame_count; i++)
     {
+        char cmd[1024] = {0};
+        size_t vma_addr = mem2vma((size_t)callstack[i]) - 1;
+
+        snprintf(cmd,
+                 sizeof(cmd),
+                 "cd %s;"
+                 "addr2line -e %s -Ci %zx 2>&1 | while read line;"
+                                                "do s_l=${line#%s};"
+                                                    "s=${s_l%:*};"
+                                                    "l=${s_l#*:};"
+                                                    "echo $s_l;"
+                                                    "head -n $l $s | tail -1;echo '';"
+                                                "done",
+                 local_proj_path.c_str(), bin_path, vma_addr, remote_proj_path.c_str());
+                         
+        cout << endl << run_cmd(cmd);
+                 
         Dl_info dl_info;
-        if(dladdr(callstack[i],&dl_info))
+        dladdr(callstack[i],&dl_info);
+        if(dl_info.dli_sname != NULL)
         {
-            char cmd[1024] = {0};
-            size_t vma_addr = mem2vma((size_t)callstack[i]) - 1;
-
-            snprintf(cmd,
-                     sizeof(cmd),
-                     "cd %s;"
-                     "addr2line -e %s -Ci %zx 2>&1 | while read line;"
-                                                    "do s_l=${line#%s};"
-                                                        "s=${s_l%:*};"
-                                                        "l=${s_l#*:};"
-                                                        "echo $s_l;"
-                                                        "head -n $l $s | tail -1;echo '';"
-                                                    "done",
-                     local_proj_path.c_str(), bin_path, vma_addr, remote_proj_path.c_str());
-
-            cout << endl << run_cmd(cmd) << " at " << dl_info.dli_sname << endl;
-        }
+            cout << " at " << dl_info.dli_sname << endl;
+        }      
     }
 
     rm(local_proj_path);
 
     exit(0);
+}
+
+void handle_exception()
+{
+	print_backtrace(0);
 }
 
 void Register()
@@ -257,7 +274,9 @@ void Register()
     {
         fprintf(stderr, "error setting signal handler for %d (%s)\n", SIGSEGV, strsignal(SIGSEGV));
         exit(EXIT_FAILURE);
-    }
+    } 
+    
+    std::set_terminate(handle_exception);
 }
 }
 
